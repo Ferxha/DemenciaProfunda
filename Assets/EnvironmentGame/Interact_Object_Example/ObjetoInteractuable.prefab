@@ -312,8 +312,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8528175545535662468}
-  - component: {fileID: 7749129165989820374}
   - component: {fileID: 6800386387580939909}
+  - component: {fileID: -7779857515182967212}
   m_Layer: 3
   m_Name: ObjetoInteractuable
   m_TagString: Untagged
@@ -338,19 +338,6 @@ Transform:
   - {fileID: 392746725092904402}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7749129165989820374
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9060256713987210480}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 98648566d6fe660429b775eab8a67e80, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::OutlineTarget
-  outlineObject: {fileID: 9031705302457829327}
 --- !u!65 &6800386387580939909
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -372,3 +359,15 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1.48, y: 0.87, z: 0.38}
   m_Center: {x: -1.9, y: 0.44, z: 0.36}
+--- !u!114 &-7779857515182967212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9060256713987210480}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d871b369d7f79e4797feed092051ccb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InteractableKeyObject
