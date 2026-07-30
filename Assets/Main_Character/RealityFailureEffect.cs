@@ -2,6 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.UI;
 
 public class RealityFailureEffect : MonoBehaviour
 {
@@ -18,17 +19,36 @@ public class RealityFailureEffect : MonoBehaviour
 
     private void Awake()
     {
-        volume.profile.TryGet(
-            out chromaticAberration
-        );
+        if (volume != null &&
+            volume.profile != null)
+        {
+            volume.profile.TryGet(
+                out chromaticAberration
+            );
 
-        volume.profile.TryGet(
-            out vignette
-        );
+            volume.profile.TryGet(
+                out vignette
+            );
 
-        volume.profile.TryGet(
-            out lensDistortion
-        );
+            volume.profile.TryGet(
+                out lensDistortion
+            );
+        }
+
+        if (blackFade != null)
+        {
+            blackFade.alpha = 0f;
+            blackFade.interactable = false;
+            blackFade.blocksRaycasts = false;
+
+            Image fadeImage =
+                blackFade.GetComponent<Image>();
+
+            if (fadeImage != null)
+            {
+                fadeImage.raycastTarget = false;
+            }
+        }
     }
 
     public IEnumerator PlayFailure()
@@ -36,7 +56,9 @@ public class RealityFailureEffect : MonoBehaviour
         if (audioSource != null &&
             failureSound != null)
         {
-            audioSource.PlayOneShot(failureSound);
+            audioSource.PlayOneShot(
+                failureSound
+            );
         }
 
         float elapsed = 0f;
@@ -46,29 +68,50 @@ public class RealityFailureEffect : MonoBehaviour
             elapsed += Time.deltaTime;
 
             float progress =
-                Mathf.Clamp01(elapsed / effectDuration);
+                Mathf.Clamp01(
+                    elapsed / effectDuration
+                );
 
             float pulse =
                 Mathf.Abs(
-                    Mathf.Sin(progress * Mathf.PI * 8f)
+                    Mathf.Sin(
+                        progress *
+                        Mathf.PI *
+                        8f
+                    )
                 );
 
             if (chromaticAberration != null)
             {
-                chromaticAberration.intensity.value =
-                    Mathf.Lerp(0.2f, 1f, pulse);
+                chromaticAberration
+                    .intensity.value =
+                    Mathf.Lerp(
+                        0.2f,
+                        1f,
+                        pulse
+                    );
             }
 
             if (vignette != null)
             {
-                vignette.intensity.value =
-                    Mathf.Lerp(0.2f, 0.65f, progress);
+                vignette
+                    .intensity.value =
+                    Mathf.Lerp(
+                        0.2f,
+                        0.65f,
+                        progress
+                    );
             }
 
             if (lensDistortion != null)
             {
-                lensDistortion.intensity.value =
-                    Mathf.Lerp(0f, -0.7f, pulse);
+                lensDistortion
+                    .intensity.value =
+                    Mathf.Lerp(
+                        0f,
+                        -0.7f,
+                        pulse
+                    );
             }
 
             yield return null;
@@ -81,12 +124,23 @@ public class RealityFailureEffect : MonoBehaviour
         {
             fadeElapsed += Time.deltaTime;
 
-            blackFade.alpha =
-                Mathf.Clamp01(
-                    fadeElapsed / fadeDuration
-                );
+            if (blackFade != null)
+            {
+                blackFade.alpha =
+                    Mathf.Clamp01(
+                        fadeElapsed /
+                        fadeDuration
+                    );
+            }
 
             yield return null;
+        }
+
+        if (blackFade != null)
+        {
+            blackFade.alpha = 1f;
+            blackFade.interactable = false;
+            blackFade.blocksRaycasts = false;
         }
     }
 }

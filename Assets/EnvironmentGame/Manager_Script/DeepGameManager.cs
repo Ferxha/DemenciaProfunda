@@ -32,6 +32,9 @@ public class DeepGameManager : MonoBehaviour
     [SerializeField] private MonoBehaviour playerMovementScript;
     [SerializeField] private FirstPersonInteractionDetector interactionDetector;
 
+    [Tooltip("Script que controla la cámara con el mouse.")]
+    [SerializeField] private FirstPersonCameraLook cameraLookScript;
+
     [Header("UI")]
     [SerializeField] private TMP_Text timerText;
     [SerializeField] private TMP_Text objectiveText;
@@ -63,14 +66,13 @@ public class DeepGameManager : MonoBehaviour
 
     private GameState currentState;
 
-    private const string FindObjective =
-        "Encuentra el objeto clave del nivel";
-
     private const string ReturnObjective =
         "Vuelve al elevador";
 
     private void Start()
     {
+        Time.timeScale = 1f;
+
         gameOverPanel.SetActive(false);
         gameplayPanel.SetActive(true);
 
@@ -118,7 +120,11 @@ public class DeepGameManager : MonoBehaviour
 
         floor.keyObject.Initialize(this);
 
-        SetObjective(FindObjective);
+        /*
+         * Coloca un objetivo diferente según
+         * el piso actual.
+         */
+        SetObjective(GetCurrentFloorObjective());
 
         if (voiceAudioSource != null &&
             floor.introductionAudio != null)
@@ -148,6 +154,30 @@ public class DeepGameManager : MonoBehaviour
                     floor.whisperDelay
                 )
             );
+        }
+    }
+
+    private string GetCurrentFloorObjective()
+    {
+        /*
+         * Floors:
+         * Element 0 = piso 3
+         * Element 1 = piso 2
+         * Element 2 = piso 1
+         */
+        switch (currentFloorIndex)
+        {
+            case 0:
+                return "Encontrar las llaves";
+
+            case 1:
+                return "Encontrar la cámara";
+
+            case 2:
+                return "Encontrar el transmisor";
+
+            default:
+                return "Encontrar el objeto";
         }
     }
 
@@ -191,8 +221,14 @@ public class DeepGameManager : MonoBehaviour
             return;
         }
 
+        int totalSeconds =
+            Mathf.CeilToInt(remainingTime);
+
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+
         timerText.text =
-            Mathf.CeilToInt(remainingTime).ToString("00");
+            $"{minutes:00}:{seconds:00}";
     }
 
     public void OnKeyObjectCollected(
@@ -302,6 +338,15 @@ public class DeepGameManager : MonoBehaviour
 
         DisablePlayerControl();
 
+        /*
+         * Desactiva específicamente la rotación
+         * de la cámara controlada por el mouse.
+         */
+        if (cameraLookScript != null)
+        {
+            cameraLookScript.enabled = false;
+        }
+
         if (failureEffect != null)
         {
             yield return failureEffect.PlayFailure();
@@ -310,6 +355,9 @@ public class DeepGameManager : MonoBehaviour
         gameplayPanel.SetActive(false);
         gameOverPanel.SetActive(true);
 
+        /*
+         * Libera el cursor para utilizar los botones.
+         */
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -365,14 +413,18 @@ public class DeepGameManager : MonoBehaviour
 
     public void RestartGame()
     {
-        SceneManager.LoadSceneAsync(
-            SceneManager.GetActiveScene().name
+        Time.timeScale = 1f;
+
+        SceneManager.LoadScene(
+            SceneManager.GetActiveScene().buildIndex
         );
     }
 
     public void ReturnToMenu()
     {
-        SceneManager.LoadSceneAsync(menuSceneName);
+        Time.timeScale = 1f;
+
+        SceneManager.LoadScene(menuSceneName);
     }
 
     private void SetObjective(string objective)
