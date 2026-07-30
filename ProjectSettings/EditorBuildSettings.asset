@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/EnvironmentGame/EnvironmentDeep.unity
     guid: 8012494ac8a009648871c640a4635e3f
+  - enabled: 1
+    path: Assets/Video_Scene/EndingVideo.unity
+    guid: 6b418e4921135774cb128237a3233995
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

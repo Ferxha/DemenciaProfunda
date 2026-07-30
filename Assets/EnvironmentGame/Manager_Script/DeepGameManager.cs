@@ -49,6 +49,8 @@ public class DeepGameManager : MonoBehaviour
     [SerializeField] private float initialElevatorDuration = 3f;
     [SerializeField] private float floorChangeDelay = 2f;
     [SerializeField] private float elevatorShakeDuration = 2.5f;
+    [SerializeField] private float finalElevatorDuration = 3f;
+    [SerializeField] private float finalFadeDuration = 1.5f;
 
     [Header("Escenas")]
     [SerializeField] private string menuSceneName = "Menu";
@@ -57,9 +59,12 @@ public class DeepGameManager : MonoBehaviour
     [Header("Efectos")]
     [SerializeField] private RealityFailureEffect failureEffect;
     [SerializeField] private RealityFlashEffect realityFlashEffect;
+    [SerializeField] private HueShiftCycle levelThreeHueEffect;
+    [SerializeField] private LastFloorPostProcessEffect levelOneEffect;
 
     private int currentFloorIndex;
     private float remainingTime;
+
     private bool timerRunning;
     private bool playerInsideElevator;
     private bool keyCollected;
@@ -73,8 +78,23 @@ public class DeepGameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
-        gameOverPanel.SetActive(false);
-        gameplayPanel.SetActive(true);
+        if (gameOverPanel != null)
+        {
+            gameOverPanel.SetActive(false);
+        }
+
+        if (gameplayPanel != null)
+        {
+            gameplayPanel.SetActive(true);
+        }
+
+        if (fadeCanvasGroup != null)
+        {
+            fadeCanvasGroup.gameObject.SetActive(true);
+            fadeCanvasGroup.alpha = 0f;
+            fadeCanvasGroup.interactable = false;
+            fadeCanvasGroup.blocksRaycasts = false;
+        }
 
         StartCoroutine(StartGameSequence());
     }
@@ -115,16 +135,24 @@ public class DeepGameManager : MonoBehaviour
         DeactivateAllFloors();
         DeactivateAllFloorNumbers();
 
-        floor.levelObject.SetActive(true);
-        floor.panelNumberObject.SetActive(true);
+        if (floor.levelObject != null)
+        {
+            floor.levelObject.SetActive(true);
+        }
 
-        floor.keyObject.Initialize(this);
+        if (floor.panelNumberObject != null)
+        {
+            floor.panelNumberObject.SetActive(true);
+        }
 
-        /*
-         * Coloca un objetivo diferente según
-         * el piso actual.
-         */
-        SetObjective(GetCurrentFloorObjective());
+        if (floor.keyObject != null)
+        {
+            floor.keyObject.Initialize(this);
+        }
+
+        SetObjective(
+            GetCurrentFloorObjective()
+        );
 
         if (voiceAudioSource != null &&
             floor.introductionAudio != null)
@@ -138,13 +166,56 @@ public class DeepGameManager : MonoBehaviour
             );
         }
 
-        elevatorDoors.OpenDoors();
+        if (elevatorDoors != null)
+        {
+            elevatorDoors.OpenDoors();
+        }
 
         remainingTime = floor.timeLimit;
         timerRunning = true;
         currentState = GameState.Exploring;
 
+        UpdateTimerText();
         EnablePlayerControl();
+
+        /*
+         * Element 0 = Nivel 3.
+         * Inicia el efecto de Hue Shift mientras
+         * el jugador busca las llaves.
+         */
+        if (currentFloorIndex == 0)
+        {
+            if (levelThreeHueEffect != null)
+            {
+                levelThreeHueEffect.StartKeysSearchEffect();
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "Level Three Hue Effect no está asignado.",
+                    this
+                );
+            }
+        }
+
+        /*
+         * Element 2 = Nivel 1.
+         * Activa Chromatic Aberration y Color Filter rosa.
+         */
+        if (currentFloorIndex == 2)
+        {
+            if (levelOneEffect != null)
+            {
+                levelOneEffect.ApplyLastFloorEffect();
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "Level One Effect no está asignado.",
+                    this
+                );
+            }
+        }
 
         if (floor.whisperAudio != null)
         {
@@ -160,10 +231,9 @@ public class DeepGameManager : MonoBehaviour
     private string GetCurrentFloorObjective()
     {
         /*
-         * Floors:
-         * Element 0 = piso 3
-         * Element 1 = piso 2
-         * Element 2 = piso 1
+         * Element 0 = Nivel 3
+         * Element 1 = Nivel 2
+         * Element 2 = Nivel 1
          */
         switch (currentFloorIndex)
         {
@@ -192,7 +262,11 @@ public class DeepGameManager : MonoBehaviour
             yield break;
         }
 
-        voiceAudioSource.PlayOneShot(clip);
+        if (voiceAudioSource != null &&
+            clip != null)
+        {
+            voiceAudioSource.PlayOneShot(clip);
+        }
     }
 
     private void UpdateTimer()
@@ -203,14 +277,20 @@ public class DeepGameManager : MonoBehaviour
         }
 
         remainingTime -= Time.deltaTime;
-        remainingTime = Mathf.Max(remainingTime, 0f);
+        remainingTime = Mathf.Max(
+            remainingTime,
+            0f
+        );
 
         UpdateTimerText();
 
         if (remainingTime <= 0f)
         {
             timerRunning = false;
-            StartCoroutine(FailSequence());
+
+            StartCoroutine(
+                FailSequence()
+            );
         }
     }
 
@@ -247,6 +327,16 @@ public class DeepGameManager : MonoBehaviour
 
         keyCollected = true;
         currentState = GameState.ReturningToElevator;
+
+        /*
+         * Detiene el Hue Shift cuando se recogen
+         * las llaves del Nivel 3.
+         */
+        if (currentFloorIndex == 0 &&
+            levelThreeHueEffect != null)
+        {
+            levelThreeHueEffect.StopKeysSearchEffect();
+        }
 
         SetObjective(ReturnObjective);
 
@@ -286,9 +376,14 @@ public class DeepGameManager : MonoBehaviour
     private IEnumerator CompleteCurrentFloor()
     {
         currentState = GameState.ChangingFloor;
+        timerRunning = false;
 
         DisablePlayerControl();
-        elevatorDoors.CloseDoors();
+
+        if (elevatorDoors != null)
+        {
+            elevatorDoors.CloseDoors();
+        }
 
         yield return new WaitForSeconds(
             floorChangeDelay
@@ -296,6 +391,11 @@ public class DeepGameManager : MonoBehaviour
 
         currentFloorIndex++;
 
+        /*
+         * Ya no quedan pisos.
+         * Las puertas ya están cerradas y comienza
+         * la secuencia final hacia el video.
+         */
         if (currentFloorIndex >= floors.Length)
         {
             yield return StartCoroutine(
@@ -306,7 +406,9 @@ public class DeepGameManager : MonoBehaviour
         }
 
         yield return StartCoroutine(
-            RunElevatorDescent(elevatorShakeDuration)
+            RunElevatorDescent(
+                elevatorShakeDuration
+            )
         );
 
         yield return StartCoroutine(
@@ -314,9 +416,13 @@ public class DeepGameManager : MonoBehaviour
         );
     }
 
-    private IEnumerator RunElevatorDescent(float duration)
+    private IEnumerator RunElevatorDescent(
+        float duration)
     {
-        currentState = GameState.ElevatorDescending;
+        currentState =
+            GameState.ElevatorDescending;
+
+        timerRunning = false;
 
         if (elevatorShake != null)
         {
@@ -338,9 +444,14 @@ public class DeepGameManager : MonoBehaviour
 
         DisablePlayerControl();
 
+        if (levelThreeHueEffect != null)
+        {
+            levelThreeHueEffect.StopKeysSearchEffect();
+        }
+
         /*
-         * Desactiva específicamente la rotación
-         * de la cámara controlada por el mouse.
+         * Detiene la rotación de cámara con el mouse
+         * para poder utilizar el cursor.
          */
         if (cameraLookScript != null)
         {
@@ -352,12 +463,17 @@ public class DeepGameManager : MonoBehaviour
             yield return failureEffect.PlayFailure();
         }
 
-        gameplayPanel.SetActive(false);
-        gameOverPanel.SetActive(true);
+        if (gameplayPanel != null)
+        {
+            gameplayPanel.SetActive(false);
+        }
 
-        /*
-         * Libera el cursor para utilizar los botones.
-         */
+        if (gameOverPanel != null)
+        {
+            gameOverPanel.SetActive(true);
+            gameOverPanel.transform.SetAsLastSibling();
+        }
+
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
     }
@@ -365,6 +481,14 @@ public class DeepGameManager : MonoBehaviour
     private IEnumerator FinalElevatorSequence()
     {
         currentState = GameState.Ending;
+        timerRunning = false;
+
+        DisablePlayerControl();
+
+        if (levelThreeHueEffect != null)
+        {
+            levelThreeHueEffect.StopKeysSearchEffect();
+        }
 
         DeactivateAllFloorNumbers();
 
@@ -373,17 +497,27 @@ public class DeepGameManager : MonoBehaviour
             groundFloorPanel.SetActive(true);
         }
 
+        /*
+         * Las puertas permanecen cerradas.
+         * Se ejecuta el movimiento final del elevador.
+         */
         yield return StartCoroutine(
-            RunElevatorDescent(elevatorShakeDuration)
+            RunElevatorDescent(
+                finalElevatorDuration
+            )
         );
 
-        elevatorDoors.OpenDoors();
+        /*
+         * Fade a negro antes de cambiar
+         * a la escena del video.
+         */
+        yield return StartCoroutine(
+            FadeToBlack()
+        );
 
-        yield return new WaitForSeconds(1f);
-
-        yield return StartCoroutine(FadeToBlack());
-
-        SceneManager.LoadSceneAsync(videoSceneName);
+        SceneManager.LoadSceneAsync(
+            videoSceneName
+        );
     }
 
     private IEnumerator FadeToBlack()
@@ -394,16 +528,27 @@ public class DeepGameManager : MonoBehaviour
         }
 
         fadeCanvasGroup.gameObject.SetActive(true);
+        fadeCanvasGroup.interactable = false;
+        fadeCanvasGroup.blocksRaycasts = true;
 
-        float duration = 1.5f;
+        float startAlpha =
+            fadeCanvasGroup.alpha;
+
         float elapsed = 0f;
 
-        while (elapsed < duration)
+        while (elapsed < finalFadeDuration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
 
-            fadeCanvasGroup.alpha =
-                Mathf.Clamp01(elapsed / duration);
+            float progress = Mathf.Clamp01(
+                elapsed / finalFadeDuration
+            );
+
+            fadeCanvasGroup.alpha = Mathf.Lerp(
+                startAlpha,
+                1f,
+                progress
+            );
 
             yield return null;
         }
@@ -415,6 +560,11 @@ public class DeepGameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
+        Cursor.lockState =
+            CursorLockMode.Locked;
+
+        Cursor.visible = false;
+
         SceneManager.LoadScene(
             SceneManager.GetActiveScene().buildIndex
         );
@@ -424,7 +574,14 @@ public class DeepGameManager : MonoBehaviour
     {
         Time.timeScale = 1f;
 
-        SceneManager.LoadScene(menuSceneName);
+        Cursor.lockState =
+            CursorLockMode.None;
+
+        Cursor.visible = true;
+
+        SceneManager.LoadScene(
+            menuSceneName
+        );
     }
 
     private void SetObjective(string objective)
